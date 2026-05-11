@@ -1,0 +1,215 @@
+1-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+string palavra = "ARARA"
+
+ChecaPalindromo(string str)
+
+static bool ChecaPalindromo (string str)
+{
+    int inicio = 0;
+    int fim = str.Length - 1;
+
+    while (inicio < fim)
+    {
+         if (str[inicio] != str[fim])
+         {
+              return false -> não é palíndromo
+         }
+       
+         inicio++;
+
+         fim--;
+    }
+return true; -> é um palíndromo
+}
+
+2-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Console.WriteLine(string.Join(", ", SequenciaFibonacci(3))); // 0, 1, 1
+Console.WriteLine(string.Join(", ", SequenciaFibonacci(5))); // 0, 1, 1, 2, 3
+Console.WriteLine(string.Join(", ", SequenciaFibonacci(7))); // 0, 1, 1, 2, 3, 5, 8
+
+
+
+static List<int> SequenciaFibonacci(int x)
+{
+     var sequencia = new List<int>();
+
+     if (x <= 0)
+            return sequencia;
+
+     for (int i = 0; i < x; i++)
+     {
+         if ( i == 0)
+               sequencia.Add(0);
+        else if (i == 1)
+               sequencia.Add(1);
+        else
+               sequencia.Add(sequencia[i-1] + sequencia[i - 2]);
+     }
+
+     return sequencia;
+}
+
+3-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+static string NormalizaTexto(string texto)
+{
+     var resultado = new StringBuilder();
+     int i = 0;
+    
+     while ( i < texto.Length)
+     {
+           if (texto[i] == '?' || texto[i] == '!')
+           {
+                 bool temInterrogacao = false;
+                 bool temExclamacao = false;
+
+                 while ( i < texto.Length && (texto[i] == '?'  ||  texto[i] == '!'))
+                 {
+                            if (texto[i] == '?') temInterrogacao = true;
+                            if (texto[i] == '!') temExclamacao = true;
+                            i++;
+                 }
+                 
+                 if (temInterrogacao && temExclamacao)
+                     resultado.Append("?!");
+                 else if ( temInterrogacao )
+                     resultado.Append("?");
+                 else
+                     resultado.Append("!");
+           }
+           else
+           {
+                 resultado.Append(texto[i]);
+                 i++;
+           }
+     }
+     return resultado.ToString();
+}
+
+Console.WriteLine(NormalizarTexto("Como é???????")); 
+// Como é?
+
+Console.WriteLine(NormalizarTexto("Não!!!!!!!!")); 
+// Não!
+
+Console.WriteLine(NormalizarTexto("O que???!!!!! Não acredito!!!")); 
+// O que?! Não acredito!
+
+4-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+View: consulta salva no banco de dados que se comporta de forma semelhante a uma tabela. Porém não armazena dados, apenas encapsula uma consulta SELECT. É útil para simplificar queries complexa ou limitar o que cada usuário pode ver
+
+Ex:
+     CREATE VIEW vw_OperacoesCredito AS
+     SELECT
+              c.Nome,
+              c.Regiao,
+              o.Valor,
+              o.DataOperacao
+     FROM Operacoes o
+     INNER JOIN Clientes c ON c.Id = o.ClienteId
+     WHERE o.Tipo = 'credito'
+
+SELECT * FROM vw_OperacoesCredito WHERE Regiao = 'Sudeste'
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Table-valued Function: é uma função que recebe parametros e retorna uma tabela. Diferente da View, ela aceita filtros como entrada, flexibilizando consultas
+Ex:
+
+CREATE FUNCTION fn_OperacoesPorCliente(@ClienteId INT)
+RETURNS TABLE
+AS
+RETURN
+(SELECT Id, Tipo, Valor, DataOperacao FROM Operacoes WHERE ClienteId = @ClienteId)
+
+SELECT * FROM fn_OperacoesPorCliente(50)
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Stored Procedure: é um bloco de código SQL salvo no banco que pode executar qualquer operação (SELECT, INSERT, UPDATE, DELETE...validações e condições) - podem ter parametros de entrada e saída
+
+CREATE PROCEDURE sp_InserirOperacao
+           @ClienteId INT,
+           @Tipo VARCHAR(10),
+           @Valor DECIMAL(10, 2)
+AS
+BEGIN
+       IF @Valor <= 0
+       BEGIN
+                RAISERROR('Valor deve ser maior que zero', 16, 1)
+                RETURN
+      END
+
+      INSERT INTO Operacoes (ClienteId, Tipo, Valor, DataOperacao)
+      VALUES (@ClienteId, @Tipo, @Valor, GETDATE())
+END
+
+EXEC sp_InserirOperacao @ClienteId = 1, @Tipo = 'credito', @Valor = 1500.00
+
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Trigger:  É um código que dispara automaticamente em resposta a um evento em uma tabela INSERT, UPDATE, DELETE. Ele responde a uma ação, não pode ser chamado. Nesse exemplo toda vez que uma operação for inserida na tabela Operacoes o trigger automaticamente registra um log sem que nenhum código externo precise chamar nada.
+
+Ex:
+
+CREATE TRIGGER trg_LogOperacao
+ON Operacoes
+AFTER INSERT
+AS
+BEGIN
+         INSERT INTO LogOperacoes (OperacaoId, DataEvento, Evento)
+         SELECT Id, GETDATE(), 'INSERÇÃO'
+         FROM inserted
+END
+
+5-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+CREATE PROCEDURE sp_FinalizarOrcamento
+    @OrcamentoId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    
+    IF NOT EXISTS (SELECT 1 FROM Orcamento WHERE Id = @OrcamentoId)
+    BEGIN
+        SELECT -1 AS Codigo, 'Orçamento não encontrado.' AS Mensagem
+        RETURN
+    END
+
+    
+    IF NOT EXISTS (SELECT 1 FROM Orcamento WHERE Id = @OrcamentoId AND Status = 'Aberto')
+    BEGIN
+        SELECT -2 AS Codigo, 'Orçamento não está com status Aberto.' AS Mensagem
+        RETURN
+    END
+
+    
+    IF NOT EXISTS (SELECT 1 FROM OrcamentoItem WHERE OrcamentoId = @OrcamentoId)
+    BEGIN
+        SELECT -3 AS Codigo, 'Orçamento não possui itens.' AS Mensagem
+        RETURN
+    END
+
+    -- Recalcular o valor total com base nos itens
+    DECLARE @ValorTotal DECIMAL(18,2)
+
+    SELECT @ValorTotal = SUM(Quantidade * ValorUnitario)
+    FROM OrcamentoItem
+    WHERE OrcamentoId = @OrcamentoId
+
+    UPDATE OrcamentoItem
+    SET ValorTotal = Quantidade * ValorUnitario
+    WHERE OrcamentoId = @OrcamentoId
+
+    
+    UPDATE Orcamento
+    SET 
+        Status          = 'Finalizado',
+        ValorTotal      = @ValorTotal,
+        DataFinalizacao = GETDATE()
+    WHERE Id = @OrcamentoId
+
+    SELECT 1 AS Codigo, 'Orçamento finalizado com sucesso.' AS Mensagem
+END
+6-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+REPOSITÓRIO : https://github.com/vruas/teste-codenapp.git
