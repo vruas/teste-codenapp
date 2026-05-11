@@ -1,4 +1,4 @@
-**Questões 1 a 5 estão no bloco de notas testecodenapp.txt neste repositório**
+**Questões 1 a 5 estão no bloco de notas testecodenapp.txt neste repositório em caso de problemas com envio via plataforma**
 
 **QUESTÃO 6**
 
